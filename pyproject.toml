@@ -1,0 +1,134 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "open-reranker"
+version = "1.0.0"
+description = "Open source reranker with DSPy and LangChain integration"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Nik Jois", email = "nikjois@llamasearch.ai"},
+]
+keywords = ["reranking", "search", "nlp", "ai", "machine-learning"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "fastapi>=0.104.0",
+    "pydantic>=2.4.2",
+    "pydantic-settings>=2.0.0",
+    "uvicorn[standard]>=0.23.2",
+    "transformers>=4.35.0",
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+    "prometheus-client>=0.17.0",
+    "httpx>=0.25.0",
+    "pandas>=2.0.0",
+    "tabulate>=0.9.0",
+    "pygments>=2.16.0",
+    "langdetect>=1.0.9",
+    "tiktoken>=0.5.0",
+    "PyJWT>=2.8.0",
+    "passlib[bcrypt]>=1.7.4",
+    "redis>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.10.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.7.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.1",
+    "flake8>=6.0.0",
+    "bandit>=1.7.0",
+    "safety>=2.3.0",
+    "tox>=4.0.0",
+]
+
+integrations = [
+    "dspy-ai>=2.0.0",
+    "langchain-core>=0.0.30",
+]
+
+mlx = [
+    "mlx>=0.0.5; platform_system=='Darwin'",
+]
+
+all = [
+    "open-reranker[dev,integrations,mlx]",
+]
+
+[project.urls]
+Homepage = "https://github.com/llamasearchai/OpenReranker"
+Documentation = "https://github.com/llamasearchai/OpenReranker"
+Repository = "https://github.com/llamasearchai/OpenReranker"
+Issues = "https://github.com/llamasearchai/OpenReranker/issues"
+
+[project.scripts]
+open-reranker = "open_reranker.main:main"
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["open_reranker"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.tox/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
