@@ -1,20 +1,68 @@
-# Open-Reranker
+# OpenReranker: High-Performance Neural Search Reranking
 
-An open-source reranker service for maximizing search relevancy with DSPy and LangChain integration. Built with cutting-edge models and optimized for performance with MLX acceleration on Apple Silicon.
+OpenReranker is an enterprise-grade, open-source reranking service designed to significantly enhance search result relevance. It leverages state-of-the-art cross-encoder models and offers seamless integration with popular AI frameworks like LangChain and DSPy. Optimized for performance, including MLX acceleration for Apple Silicon, OpenReranker is built for demanding production environments.
 
-## Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Versions](https://img.shields.io/pypi/pyversions/open-reranker.svg)](https://pypi.org/project/open-reranker/)
+[![PyPI Version](https://img.shields.io/pypi/v/open-reranker.svg)](https://pypi.org/project/open-reranker/)
+[![Build Status](https://github.com/llamasearchai/OpenReranker/actions/workflows/ci.yml/badge.svg)](https://github.com/llamasearchai/OpenReranker/actions/workflows/ci.yml)
+[![Code Coverage](https://codecov.io/gh/llamasearchai/OpenReranker/branch/main/graph/badge.svg)](https://codecov.io/gh/llamasearchai/OpenReranker)
 
-- **High-Performance Reranking**: Uses state-of-the-art cross-encoder models for maximizing search relevance.
-- **Framework Integrations**: Seamlessly integrates with DSPy and LangChain (now with async support and direct service usage).
-- **Specialized Rerankers**: Dedicated models for text, code, and tabular data (code/table are future enhancements).
-- **Performance Optimizations**: MLX acceleration for Apple Silicon.
-- **REST API**: Easy-to-use asynchronous API for all reranking operations.
-- **Production-Ready**:
-    - Comprehensive logging (JSON format) and monitoring (Prometheus).
-    - JWT-based Authentication.
-    - Tier-based Rate Limiting (QPS, RPM, TPM) with Redis or in-memory fallback.
-    - Response Caching (model scores and full rerank responses) with Redis or in-memory fallback.
-    - Scalable with configurable worker counts.
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Core Concepts](#core-concepts)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [Environment Configuration](#environment-configuration)
+  - [Running the Server](#running-the-server)
+- [Usage Examples](#usage-examples)
+  - [API Usage: Reranking Documents](#api-usage-reranking-documents)
+  - [LangChain Integration](#langchain-integration)
+  - [DSPy Integration](#dspy-integration)
+- [API Endpoints](#api-endpoints)
+- [Configuration](#configuration)
+  - [Environment Variables](#environment-variables)
+  - [Redis Setup](#redis-setup)
+- [Models](#models)
+  - [Supported Models](#supported-models)
+  - [Custom Models](#custom-models)
+- [Advanced Features](#advanced-features)
+  - [Authentication and Authorization](#authentication-and-authorization)
+  - [Rate Limiting](#rate-limiting)
+  - [Caching Strategies](#caching-strategies)
+  - [MLX Acceleration](#mlx-acceleration)
+  - [Monitoring and Logging](#monitoring-and-logging)
+- [Architecture Overview](#architecture-overview)
+- [Development](#development)
+  - [Setup](#setup)
+  - [Testing](#testing)
+  - [Pre-commit Hooks](#pre-commit-hooks)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Key Features
+
+-   **State-of-the-Art Reranking:** Employs advanced cross-encoder models to deliver superior search relevance across various data types.
+-   **Framework Agnostic & Integrated:** Offers direct, efficient class-based integrations with LangChain and DSPy, alongside a robust REST API.
+-   **Specialized Model Support:** Architected to support distinct rerankers optimized for text, source code, and tabular data (future enhancements for code/table models).
+-   **Performance-Driven:** Features MLX acceleration for significant speedups on Apple Silicon hardware.
+-   **Asynchronous by Design:** Built with FastAPI for high-throughput, non-blocking API operations.
+-   **Production-Grade Reliability:**
+    -   **Comprehensive Logging:** Structured JSON logging for easy analysis and integration with log management systems.
+    -   **Prometheus Metrics:** Exposes detailed metrics for performance monitoring and alerting.
+    -   **Secure Authentication:** JWT-based authentication for protecting API endpoints.
+    -   **Tiered Rate Limiting:** Sophisticated rate limiting (QPS, RPM, TPM) with Redis or in-memory backing, configurable per user tier.
+    -   **Intelligent Caching:** Multi-level caching (full responses and model scores) using Redis or in-memory stores to reduce latency and computational load.
+    -   **Scalability:** Configurable worker counts for horizontal scaling.
+
+## Core Concepts
+
+**Reranking:** The process of taking an initial set of search results (often from a traditional keyword search or a dense retriever like an embedding model) and re-ordering them based on a more computationally intensive but accurate relevance model. Cross-encoders, used by OpenReranker, achieve high accuracy by jointly encoding the query and each document.
+
+**Cross-Encoders:** Neural models that take a query and a document as a single input to produce a relevance score. This allows for deep interaction modeling between the query and document, leading to higher accuracy than bi-encoder (embedding-based) approaches for final-stage ranking.
+
+**MLX Acceleration:** A framework for machine learning on Apple Silicon, providing significant performance improvements for supported models by leveraging the unified memory architecture and Apple's Neural Engine.
 
 ## Installation
 
@@ -23,59 +71,76 @@ An open-source reranker service for maximizing search relevancy with DSPy and La
 ```bash
 pip install open-reranker
 ```
+This will install the core package. For optional dependencies related to integrations or MLX:
+```bash
+pip install open-reranker[integrations,mlx]
+```
 
-### From source
+### From Source (for development or contributions)
 
 ```bash
-git clone https://github.com/your-username/open-reranker.git # Replace with your actual repo URL
-cd open-reranker
+git clone https://github.com/llamasearchai/OpenReranker.git
+cd OpenReranker
 
 # Create and activate a virtual environment (recommended)
 python -m venv .venv
-source .venv/bin/activate # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Linux/macOS
+# .venv\Scripts\activate  # On Windows
 
 # Install dependencies
-pip install -e ".[dev,integrations,mlx]" # Install all optional dependencies
-# or pip install -e . for core dependencies only
+# Ensure pip is up-to-date for pyproject.toml extras
+python -m pip install --upgrade pip
+# Install core, development, integrations, and MLX dependencies
+pip install -e ".[dev,integrations,mlx]"
+# For core dependencies only:
+# pip install -e .
 ```
 
 ## Quick Start
 
-### 1. Setup Environment Variables
+### 1. Environment Configuration
 
-Copy the `.env.example` file to `.env` and customize it:
+Copy the `.env.example` file to `.env` and customize the settings. This file contains all configurable parameters for the service.
 
 ```bash
 cp .env.example .env
-# Edit .env with your settings (e.g., SECRET_KEY, REDIS_URL if used)
+# Open .env and modify settings such as SECRET_KEY, REDIS_URL (if used), etc.
 ```
+Refer to the [Configuration](#configuration) section for details on all available environment variables.
 
-### 2. Start the Server
+### 2. Running the Server
 
+You can run OpenReranker using Uvicorn. The number of workers can be configured via the `OPEN_RERANKER_NUM_WORKERS` environment variable or the `--workers` CLI flag.
+
+**For development (with auto-reload):**
 ```bash
-# Using Uvicorn (for development or single instance)
-# The number of workers can be set via OPEN_RERANKER_NUM_WORKERS in .env or --workers flag
-uvicorn open_reranker.main:app --host 0.0.0.0 --port 8000 --workers 4 
-
-# For development with auto-reload (typically 1 worker):
-# uvicorn open_reranker.main:app --reload
-
-# For production, consider using Gunicorn with Uvicorn workers:
-# gunicorn -w 4 -k uvicorn.workers.UvicornWorker open_reranker.main:app -b 0.0.0.0:8000
+uvicorn open_reranker.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 3. Using the API
+**For a single instance production/staging deployment:**
+```bash
+uvicorn open_reranker.main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+(Adjust `--workers 4` based on your server's CPU cores.)
 
-**Example: Reranking Documents**
+**For multi-process production, consider Gunicorn with Uvicorn workers:**
+```bash
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker open_reranker.main:app -b 0.0.0.0:8000
+```
+(Ensure Gunicorn is installed: `pip install gunicorn`)
+
+## Usage Examples
+
+### API Usage: Reranking Documents
+
+The primary endpoint for reranking is `POST /api/v1/rerank`.
 
 ```python
 import requests
 import json
 
-# Define your API endpoint
 API_URL = "http://localhost:8000/api/v1/rerank"
 
-# Define your query and documents
 query = "What is the function of chlorophyll in plants?"
 documents = [
     {"id": "doc1", "text": "Chlorophyll is a green pigment found in plants that absorbs light energy for photosynthesis."},
@@ -83,45 +148,44 @@ documents = [
     {"id": "doc3", "text": "The Earth orbits around the Sun at an average distance of 149.6 million kilometers."}
 ]
 
-# Create request payload
 payload = {
     "query": query,
     "documents": documents,
-    "model": "default", # or specify a model like "jinaai/jina-reranker-v2-base-en"
+    "model": "default",  # Or specify a model name like "jinaai/jina-reranker-v2-base-en"
     "top_k": 2,
     "include_scores": True
 }
 
-# If authentication is enabled (OPEN_RERANKER_AUTH_ENABLED=True in .env)
-# You'll need to obtain a JWT token first (e.g., via a /token endpoint if implemented)
-# and include it in the headers.
+# If authentication is enabled (OPEN_RERANKER_AUTH_ENABLED=True in .env),
+# obtain a JWT token and include it in the headers:
 # HEADERS = {"Authorization": "Bearer YOUR_JWT_TOKEN"}
 # response = requests.post(API_URL, json=payload, headers=HEADERS)
 
-# Assuming auth is disabled or token is handled for this example:
+# Assuming auth is disabled for this example or token is handled:
 response = requests.post(API_URL, json=payload)
 
 if response.status_code == 200:
     results = response.json()
     print(f"Query: {results['query']}")
-    print(f"Processing time: {results['timing']['reranking_time']:.3f} seconds")
-    print(f"Cached: {results['metadata'].get('cached', False)}")
+    print(f"Processing Time: {results['timing']['total_processing_time']:.4f} seconds (Reranking: {results['timing']['reranking_time']:.4f}s)")
+    print(f"Cached Response: {results['metadata'].get('cached_response', False)}")
+    print(f"Cached Model Scores: {results['metadata'].get('cached_model_scores', False)}")
     
     print("\nRanked Results:")
     for i, doc in enumerate(results["results"]):
-        print(f"{i+1}. Score: {doc['score']:.4f} - ID: {doc['id']} - {doc['text'][:100]}...")
+        print(f"{i+1}. Score: {doc['score']:.4f} - ID: {doc['id']} - Text: {doc['text'][:100]}...")
 elif response.status_code == 401:
     print(f"Authentication Error: {response.status_code} - {response.text}")
 elif response.status_code == 429:
     print(f"Rate Limit Error: {response.status_code} - {response.text}")
 else:
-    print(f"Error: {response.status_code}")
-    print(response.text)
+    print(f"Error: {response.status_code} - {response.text}")
+
 ```
 
-### Using with LangChain
+### LangChain Integration
 
-The `LangChainReranker` integration now uses the `RerankerService` directly and supports asynchronous operations.
+OpenReranker provides a `LangChainReranker` class that integrates directly with LangChain's retrieval components, using the `RerankerService` internally for efficiency (no HTTP overhead). It supports asynchronous operations.
 
 ```python
 import asyncio
@@ -130,474 +194,426 @@ from langchain_core.documents import Document
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from typing import List
 
-# Example of a simple custom retriever for LangChain for demonstration
+# Example of a simple custom retriever for demonstration
 class MySimpleRetriever(BaseRetriever):
     docs: List[Document]
 
     def _get_relevant_documents(
         self, query: str, *, run_manager: CallbackManagerForRetrieverRun
     ) -> List[Document]:
-        # This is the synchronous version
-        # In a real scenario, you might have an async version or use asyncio.run for a sync wrapper
-        print("(MySimpleRetriever._get_relevant_documents called)")
+        # Synchronous version
+        print(f"(MySimpleRetriever sync called for: '{query}')")
         return [doc for doc in self.docs if query.lower() in doc.page_content.lower()]
 
     async def _aget_relevant_documents(
         self, query: str, *, run_manager: CallbackManagerForRetrieverRun
     ) -> List[Document]:
-        print("(MySimpleRetriever._aget_relevant_documents called)")
-        # Simulate async work if needed
-        await asyncio.sleep(0.01)
+        # Asynchronous version
+        print(f"(MySimpleRetriever async called for: '{query}')")
+        await asyncio.sleep(0.01) # Simulate async work
         return [doc for doc in self.docs if query.lower() in doc.page_content.lower()]
-
 
 from open_reranker.integrations.langchain import LangChainReranker
 
-# Create a base retriever (replace with your actual retriever)
-base_docs = [
+# Sample documents for the base retriever
+base_documents = [
     Document(page_content="Document 1 about science and chlorophyll."),
-    Document(page_content="Document 2 about history."),
-    Document(page_content="Document 3 about biology and plants, focusing on chlorophyll.")
+    Document(page_content="Document 2 about history and empires."),
+    Document(page_content="Document 3 details biology and plants, specifically chlorophyll function.")
 ]
-base_retriever = MySimpleRetriever(docs=base_docs)
+base_retriever = MySimpleRetriever(docs=base_documents)
 
-
-# Create a reranker on top of the base retriever
-# LangChainReranker uses RerankerService directly (not an HTTP endpoint)
-reranker = LangChainReranker(
+# Initialize the LangChainReranker
+# This uses the RerankerService directly, not an HTTP endpoint.
+open_reranker_retriever = LangChainReranker(
     base_retriever=base_retriever,
-    model="default", # Uses the default model configured in OpenReranker service
+    model="default",  # Uses the default model configured in OpenReranker's RerankerService
     top_k=2
 )
 
-async def main_langchain():
-    # Query with reranking (asynchronously)
-    print("\n--- LangChain Async Test ---")
-    results_async = await reranker.aget_relevant_documents("Tell me about science and plants")
-    print("Async Results:")
-    for doc in results_async:
-        print(f"Score: {doc.metadata.get('reranker_score', 0.0):.4f} - {doc.page_content}")
+async def run_langchain_example():
+    query = "Tell me about science and plants focusing on chlorophyll"
+    
+    print("\n--- LangChain Asynchronous Reranking ---")
+    async_results = await open_reranker_retriever.aget_relevant_documents(query)
+    print("Async Reranked Results:")
+    for doc in async_results:
+        print(f"Score: {doc.metadata.get('reranker_score', 0.0):.4f} - Content: {doc.page_content}")
 
-    # Synchronous usage (calls async version internally with asyncio.run)
-    print("\n--- LangChain Sync Test ---")
-    results_sync = reranker.get_relevant_documents("Tell me about science and plants")
-    print("Sync Results (via async wrapper):")
-    for doc in results_sync:
-        print(f"Score: {doc.metadata.get('reranker_score', 0.0):.4f} - {doc.page_content}")
+    print("\n--- LangChain Synchronous Reranking ---")
+    # The synchronous version internally uses asyncio.run to call the async logic
+    sync_results = open_reranker_retriever.get_relevant_documents(query)
+    print("Sync Reranked Results (via async wrapper):")
+    for doc in sync_results:
+        print(f"Score: {doc.metadata.get('reranker_score', 0.0):.4f} - Content: {doc.page_content}")
 
 if __name__ == "__main__":
-    # To run this example, ensure OpenReranker is installed and its dependencies are available.
-    # You might need to run this from the root of the OpenReranker project or ensure PYTHONPATH is set.
-    # Also, ensure the RerankerService can load models (e.g., transformers are installed).
-    # asyncio.run(main_langchain())
-    print("LangChain example: Run with `asyncio.run(main_langchain())` in a suitable environment.")
+    # Ensure OpenReranker is installed and its dependencies (like transformers) are available.
+    # This example can be run from the root of the OpenReranker project or if PYTHONPATH is set.
+    # asyncio.run(run_langchain_example())
+    print("LangChain example ready. To run: `asyncio.run(run_langchain_example())` in a suitable async environment.")
 ```
 
-### Using with DSPy
+### DSPy Integration
 
-The `DSPyReranker` (formerly `OpenRerankerRM`) integration now uses the `RerankerService` directly and supports asynchronous operations.
+The `DSPyReranker` module allows OpenReranker to be used as a reranking step within DSPy programs. It also utilizes the `RerankerService` directly.
 
 ```python
 import asyncio
 import dspy
 from typing import List, Union, Any, Optional
 
-# Example of a simple custom RM for DSPy for demonstration
-class MySimpleRM(dspy.Retrieve):
+# Example of a simple custom DSPy Retrieval Module (RM) for demonstration
+class MySimpleDSPyRM(dspy.Retrieve):
     def __init__(self, docs: List[str], k: int = 3):
         super().__init__(k=k)
-        self.docs = [dspy.Passage(long_text=doc) for doc in docs]
+        # Store documents as dspy.Passage objects
+        self.dspy_docs = [dspy.Passage(long_text=doc) for doc in docs]
 
-    def forward(self, query_or_queries: Union[str, List[str]], k: Optional[int] = None) -> List[dspy.Passage]:
-        k = k if k is not None else self.k
+    def forward(self, query_or_queries: Union[str, List[str]], k: Optional[int] = None) -> dspy.Prediction:
+        k_to_use = k if k is not None else self.k
         queries = [query_or_queries] if isinstance(query_or_queries, str) else query_or_queries
-        results = []
-        for query in queries:
+        
+        all_passages = []
+        for query_text in queries:
             # Simple keyword match for demonstration
-            matched_docs = [doc for doc in self.docs if query.lower() in doc.long_text.lower()]
-            results.extend(dspy.Passage.sort_passages_by_scores(matched_docs)[:k]) # DSPy expects sorted
-        return results
+            matched_passages = [doc for doc in self.dspy_docs if query_text.lower() in doc.long_text.lower()]
+            all_passages.extend(matched_passages)
+        
+        # DSPy Retrieve.forward should return a dspy.Prediction containing a list of passages
+        # For simplicity, we're not sorting by any initial score here.
+        return dspy.Prediction(passages=all_passages[:k_to_use])
 
-from open_reranker.integrations.dspy.reranker import DSPyReranker
 
-# Dummy documents for the base retriever
-sample_passages_text = [
-    "Chlorophyll is essential for photosynthesis in plants.",
-    "The Roman Empire was vast and influential.",
-    "Quantum physics explores the nature of reality at the smallest scales.",
-    "Plants absorb sunlight using chlorophyll, a key pigment."
+from open_reranker.integrations.dspy import DSPyReranker
+
+sample_texts_for_dspy = [
+    "Chlorophyll is vital for photosynthesis, the process plants use to make food.",
+    "The ancient Roman Empire had a significant impact on Western civilization.",
+    "Quantum entanglement is a phenomenon in quantum physics.",
+    "Advanced research on chlorophyll explores its role in light harvesting."
 ]
 
-# Create a base retrieval module
-base_rm = MySimpleRM(docs=sample_passages_text, k=10)
+# Create a base DSPy retrieval module
+base_dspy_retriever = MySimpleDSPyRM(docs=sample_texts_for_dspy, k=10)
 
-# Create an OpenReranker retrieval module
-# DSPyReranker uses RerankerService directly
-reranker_rm = DSPyReranker(
-    base_retriever=base_rm,
-    model="default", 
+# Initialize DSPyReranker
+# This wraps the base_dspy_retriever and reranks its results.
+dspy_reranker_module = DSPyReranker(
+    base_retriever=base_dspy_retriever,
+    model="default",  # Corresponds to OPEN_RERANKER_DEFAULT_RERANKER_MODEL
     top_k=2
 )
 
-# Example DSPy Module using the reranker
-class RAGWithDSPyReranker(dspy.Module):
+# Example DSPy Program using the reranker
+class SimpleRAGWithDSPyReranker(dspy.Module):
     def __init__(self):
         super().__init__()
-        # DSPyReranker acts as a retriever itself, taking a base_retriever
-        self.retrieve_and_rerank = reranker_rm
-        # Example of a predictor that would use the retrieved & reranked context
-        # self.generate_answer = dspy.Predict('context, question -> answer') 
+        # DSPyReranker itself acts as a dspy.Retrieve module
+        self.retrieve_and_rerank = dspy_reranker_module
+        # In a full RAG, you'd have a generation model here:
+        # self.generate_answer = dspy.Predict("context, question -> answer")
 
-    def forward(self, query: str) -> Any:
-        # DSPyReranker's forward method returns List[Tuple[str, float]] (text, score)
-        # We need to adapt this to dspy.Passage objects for use in other DSPy modules.
-        # The DSPyReranker itself now returns List[dspy.Passage] when called directly or via __call__ (sync)
-        # if it wraps a base_retriever that returns dspy.Passage objects.
-        # For this example, let's assume we get (text, score) and convert.
-
-        # The DSPyReranker is a Retriever, so its forward/call returns List[dspy.Passage]
-        # if the base_retriever returns dspy.Passage. MySimpleRM returns dspy.Passage.
-        context = self.retrieve_and_rerank(query) # This calls DSPyReranker.__call__ (sync)
-                                                 # which wraps its async forward.
+    def forward(self, query: str) -> dspy.Prediction:
+        # The DSPyReranker module, when called, will first use its base_retriever
+        # to get initial documents, then rerank them, and return a dspy.Prediction
+        # containing the reranked dspy.Passage objects.
+        reranked_context = self.retrieve_and_rerank(query)
         
-        # For demonstration, we'll just return the context.
-        # In a real RAG, you would pass this to a dspy.Predict or dspy.ChainOfThought module.
-        # e.g., prediction = self.generate_answer(context=context, question=query)
-        return context 
+        # For demonstration, we return the reranked context.
+        # A real RAG would use this context for answer generation:
+        # prediction = self.generate_answer(context=reranked_context.passages, question=query)
+        return reranked_context
 
-async def main_dspy():
-    print("\n--- DSPy Async Test (Illustrative) ---")
-    # DSPy itself is primarily synchronous in its main execution flow for modules.
-    # The DSPyReranker.forward is async, and __call__ wraps it.
-    # To test the async nature, you'd typically call the .forward() method of the retriever directly.
+async def run_dspy_example():
+    query = "What is chlorophyll and its role in plants?"
+
+    print("\n--- DSPy Integration Test ---")
     
-    # Get initial passages from base retriever
-    base_passages = base_rm.forward("What is chlorophyll in plants?")
-    print(f"Base RM found {len(base_passages)} passages.")
-
-    # Rerank these using the async forward method of DSPyReranker
-    # Note: DSPyReranker.forward expects a query string and documents as list of strings or dspy.Passage
-    # and returns List[Tuple[str, float]]. We need to adapt.
-
-    # The `reranker_rm` when called directly (or its `forward` method) will use its `base_retriever`
-    # This means the following call will first call base_rm.forward, then rerank.
-    async_reranked_results_with_scores = await reranker_rm.forward("What is chlorophyll in plants?")
-    print("Async Reranked Results (text, score tuples from DSPyReranker.forward):")
-    # reranker_rm.forward returns List[Tuple[Any, float]], where Any is the passage text
-    for text, score in async_reranked_results_with_scores:
-        print(f"Score: {score:.4f} - {text}")
-
-    print("\n--- DSPy Sync Test (using RAG module) ---")
-    # Configure DSPy (optional, if you have a global LM/RM setup)
-    # For this standalone example, it's not strictly needed as RAGWithDSPyReranker uses specific modules.
-    # try:
-    #     dspy.settings.configure(lm=None, rm=None) # Dummy config
-    # except AttributeError: # Handle older DSPy versions
-    #     pass 
-
-    rag_program = RAGWithDSPyReranker()
-    results = rag_program(query="What is chlorophyll in plants?") # Calls __call__ on reranker_rm
+    # DSPy modules are typically used synchronously.
+    # The DSPyReranker's __call__ method handles async operations internally if needed.
     
-    print("Sync RAG Results (dspy.Passage objects):")
-    for passage in results:
-        # The score should ideally be part of the dspy.Passage object if set by the reranker
-        # The current DSPyReranker.forward returns (text, score), so the RAG module needs to construct dspy.Passage with score.
-        # Let's assume the score is in passage.score or passage.metadata['score']
-        score = passage.score if hasattr(passage, 'score') and passage.score is not None else passage.long_text.split(" (Score: ")[-1].replace(")","") if " (Score: " in passage.long_text else 0.0
-        try:
-            score = float(score)
-        except ValueError:
-            score = 0.0 # Default if score parsing fails
-        print(f"Score: {score:.4f} - {passage.long_text}")
+    # Configure a dummy LM for DSPy if not already set globally (for Predict modules)
+    # For this example, since we only use Retrieve, it's not strictly necessary.
+    # if not dspy.settings.lm:
+    #     dspy.settings.configure(lm=dspy.OpenAI(model="gpt-3.5-turbo-instruct", max_tokens=100))
+
+
+    rag_program_instance = SimpleRAGWithDSPyReranker()
+    
+    # Execute the RAG program
+    final_prediction = rag_program_instance(query=query)
+    
+    print(f"Reranked Passages for query: '{query}':")
+    if final_prediction.passages:
+        for i, passage in enumerate(final_prediction.passages):
+            # Scores are added to passage.score by DSPyReranker
+            score = passage.score if hasattr(passage, 'score') and passage.score is not None else "N/A"
+            print(f"{i+1}. Score: {score:.4f} - Text: {passage.long_text}")
+    else:
+        print("No passages returned after reranking.")
 
 if __name__ == "__main__":
-    # To run this example, ensure OpenReranker & DSPy are installed and dependencies are available.
-    # You might need to run this from the root of the OpenReranker project or ensure PYTHONPATH is set.
-    # Also, ensure the RerankerService can load models.
-    # asyncio.run(main_dspy())
-    print("DSPy example: Run with `asyncio.run(main_dspy())` in a suitable environment.")
+    # Ensure OpenReranker & DSPy are installed and dependencies are available.
+    # Needs to be run from project root or with PYTHONPATH set. Models must be loadable.
+    # asyncio.run(run_dspy_example())
+    print("DSPy example ready. To run: `asyncio.run(run_dspy_example())` in a suitable async environment.")
 
 ```
 
 ## API Endpoints
 
--   **`POST /api/v1/rerank`**: Reranks a list of documents for a given query.
-    -   Supports caching (full response) and rate limiting. Asynchronous.
--   **`POST /api/v1/rerank/batch`**: Reranks multiple sets of documents for multiple queries in a single request.
-    -   Requires "pro" tier or higher by default (configurable via JWT tier claim).
-    -   Supports rate limiting. Asynchronous.
--   **`POST /api/v1/rerank/code`**: (Future Enhancement) Reranks code snippets.
--   **`POST /api/v1/rerank/table`**: (Future Enhancement) Reranks tabular data.
--   **`POST /api/v1/integrations/dspy`**: HTTP endpoint for DSPy integration (if not using `DSPyReranker` class directly).
-    -   The `DSPyReranker` class is designed to use the `RerankerService` directly (preferred method).
-    -   Supports rate limiting. Asynchronous.
--   **`POST /api/v1/integrations/langchain`**: HTTP endpoint for LangChain integration (if not using `LangChainReranker` class directly).
-    -   The `LangChainReranker` class uses the `RerankerService` directly (preferred method).
-    -   Supports rate limiting. Asynchronous.
--   **`GET /`**: Health check.
--   **`GET /metrics`**: Prometheus metrics endpoint.
--   **`DELETE /api/v1/cache`**: Clears all cached results (model scores and rerank responses).
-    -   Requires "enterprise" tier or higher by default (configurable via JWT tier claim).
+Detailed list of API endpoints:
 
-*(Authentication might be required for some endpoints if `OPEN_RERANKER_AUTH_ENABLED` is true.)*
+-   **`POST /api/v1/rerank`**: Reranks a list of documents for a given query.
+    -   **Request Body**: `RerankerRequest` model (query, documents, model, top_k, etc.)
+    -   **Response**: `RerankerResponse` model (ranked documents, scores, timing, metadata)
+    -   Supports response caching and model score caching.
+    -   Asynchronous operation.
+-   **`POST /api/v1/rerank/batch`**: Reranks multiple sets of documents for multiple queries in a single request.
+    -   **Request Body**: `BatchRerankerRequest` model.
+    -   **Response**: `BatchRerankerResponse` model.
+    -   Requires a specific user tier (default: "pro", configurable).
+    -   Asynchronous operation.
+-   **`POST /api/v1/integrations/dspy`**: (Legacy HTTP Endpoint) Provides an HTTP interface for DSPy integration.
+    -   The `DSPyReranker` class (direct service usage) is the preferred method.
+    -   Asynchronous operation.
+-   **`POST /api/v1/integrations/langchain`**: (Legacy HTTP Endpoint) Provides an HTTP interface for LangChain integration.
+    -   The `LangChainReranker` class (direct service usage) is the preferred method.
+    -   Asynchronous operation.
+-   **`GET /`**: Health check endpoint. Returns `{"status": "healthy"}`.
+-   **`GET /metrics`**: Prometheus metrics endpoint. Exposes various operational metrics.
+-   **`DELETE /api/v1/cache`**: Clears all cached data (full responses and model scores).
+    -   Requires a specific user tier (default: "enterprise", configurable).
+
+*Authentication (JWT Bearer token) is enforced if `OPEN_RERANKER_AUTH_ENABLED` is true.*
 
 ## Configuration
 
-The Open-Reranker service is configured via environment variables. Create a `.env` file in the project root (you can copy `.env.example`).
+OpenReranker is configured primarily through environment variables. Create a `.env` file in the project root by copying `.env.example`.
 
-Key environment variables:
+### Environment Variables
 
-```bash
-# --- General API Settings ---
-OPEN_RERANKER_API_PREFIX="/api/v1"       # Base path for all API routes
-OPEN_RERANKER_DEBUG=False                # Enable FastAPI debug mode (True/False)
-OPEN_RERANKER_HOST="0.0.0.0"             # Host address to bind the server
-OPEN_RERANKER_PORT=8000                  # Port for the server
+Below are key environment variables. Refer to `.env.example` for a comprehensive list and default values.
 
-# --- CORS (Cross-Origin Resource Sharing) ---
-# Comma-separated list of allowed origins, or "*" for all.
-# Example: OPEN_RERANKER_CORS_ORIGINS="http://localhost:3000,https://yourdomain.com"
-OPEN_RERANKER_CORS_ORIGINS="*"
+**General API Settings:**
+-   `OPEN_RERANKER_API_PREFIX`: Base path for API routes (Default: `/api/v1`).
+-   `OPEN_RERANKER_DEBUG`: Enable FastAPI debug mode (Default: `False`).
+-   `OPEN_RERANKER_HOST`: Host address to bind (Default: `0.0.0.0`).
+-   `OPEN_RERANKER_PORT`: Server port (Default: `8000`).
 
-# --- Authentication --- 
-OPEN_RERANKER_AUTH_ENABLED=True          # Enable JWT authentication (True/False)
-# IMPORTANT: Change this in production! Used to sign JWTs.
-OPEN_RERANKER_SECRET_KEY="your-super-secret-jwt-key-please-change-this" 
-OPEN_RERANKER_ACCESS_TOKEN_EXPIRE_MINUTES=10080 # Default: 7 days (in minutes)
-# Define user tiers for rate limiting and feature access (comma-separated)
-OPEN_RERANKER_USER_TIERS="free,pro,enterprise" 
-# Define required tier for /rerank/batch endpoint
-OPEN_RERANKER_BATCH_ENDPOINT_TIER="pro"
-# Define required tier for /cache DELETE endpoint
-OPEN_RERANKER_CACHE_ENDPOINT_TIER="enterprise"
+**CORS (Cross-Origin Resource Sharing):**
+-   `OPEN_RERANKER_CORS_ORIGINS`: Comma-separated list of allowed origins. `*` for all. (Default: `*`).
 
-# --- Redis for Caching & Rate Limiting ---
-# If not set, in-memory stores will be used (not suitable for multi-process/multi-instance).
-# Example: OPEN_RERANKER_REDIS_URL="redis://localhost:6379/0"
-OPEN_RERANKER_REDIS_URL=
-OPEN_RERANKER_CACHE_ENABLED=True         # Enable response caching (True/False)
-OPEN_RERANKER_CACHE_TTL=3600             # Default cache Time-To-Live in seconds (1 hour) for full responses
-OPEN_RERANKER_MODEL_SCORE_CACHE_TTL=86400 # TTL for individual model scores (1 day)
+**Authentication:**
+-   `OPEN_RERANKER_AUTH_ENABLED`: Enable JWT authentication (Default: `True`).
+-   `OPEN_RERANKER_SECRET_KEY`: **Critical for production.** Secret key for signing JWTs.
+-   `OPEN_RERANKER_ACCESS_TOKEN_EXPIRE_MINUTES`: Token expiry (Default: `10080` - 7 days).
+-   `OPEN_RERANKER_USER_TIERS`: Comma-separated list of defined user tiers (Default: `free,pro,enterprise`).
+-   `OPEN_RERANKER_BATCH_ENDPOINT_TIER`: Required tier for `/rerank/batch` (Default: `pro`).
+-   `OPEN_RERANKER_CACHE_ENDPOINT_TIER`: Required tier for `DELETE /cache` (Default: `enterprise`).
 
-# --- Rate Limiting --- 
-# These are default limits for the "free" tier, applied per client ID (user or IP).
-# Pro and Enterprise tiers typically have higher limits (scaled in code based on these defaults).
-OPEN_RERANKER_RATE_LIMIT_QPS=100         # Queries Per Second
-OPEN_RERANKER_RATE_LIMIT_RPM=6000        # Requests Per Minute (increased from 600)
-OPEN_RERANKER_RATE_LIMIT_TPM=1000000     # Tokens Per Minute (if COUNT_TOKENS is True)
-OPEN_RERANKER_COUNT_TOKENS=True          # Enable token counting for rate limiting (True/False)
-# Scaling factors for pro and enterprise tiers (e.g., 2.0 means 2x the free tier limit)
-OPEN_RERANKER_PRO_TIER_SCALE_FACTOR=2.0
-OPEN_RERANKER_ENTERPRISE_TIER_SCALE_FACTOR=5.0
+**Redis for Caching & Rate Limiting:**
+-   `OPEN_RERANKER_REDIS_URL`: Redis connection URL (e.g., `redis://localhost:6379/0`). If unset, in-memory stores are used.
+-   `OPEN_RERANKER_CACHE_ENABLED`: Enable response caching (Default: `True`).
+-   `OPEN_RERANKER_CACHE_TTL`: TTL for full API responses in seconds (Default: `3600` - 1 hour).
+-   `OPEN_RERANKER_MODEL_SCORE_CACHE_TTL`: TTL for individual model scores (Default: `86400` - 1 day).
 
-# --- Model Configuration ---
-# Default models (Jina AI v2 Rerankers are good choices)
-OPEN_RERANKER_DEFAULT_RERANKER_MODEL="jinaai/jina-reranker-v2-base-en" 
-OPEN_RERANKER_CODE_RERANKER_MODEL="jinaai/jina-reranker-v2-base-code"  # For future code reranking
-OPEN_RERANKER_TABLE_RERANKER_MODEL="jinaai/jina-reranker-v1-base- શું" # Example for table reranking (model to be chosen)
+**Rate Limiting:**
+-   `OPEN_RERANKER_RATE_LIMIT_QPS`: Queries Per Second for the base tier (Default: `100`).
+-   `OPEN_RERANKER_RATE_LIMIT_RPM`: Requests Per Minute for the base tier (Default: `6000`).
+-   `OPEN_RERANKER_RATE_LIMIT_TPM`: Tokens Per Minute for the base tier (Default: `1000000`).
+-   `OPEN_RERANKER_COUNT_TOKENS`: Enable token counting for TPM rate limiting (Default: `True`).
+-   `OPEN_RERANKER_PRO_TIER_SCALE_FACTOR`: Multiplier for 'pro' tier limits (Default: `2.0`).
+-   `OPEN_RERANKER_ENTERPRISE_TIER_SCALE_FACTOR`: Multiplier for 'enterprise' tier limits (Default: `5.0`).
 
-# --- Tier-Specific Models (Optional JSON string) ---
-# Example: OPEN_RERANKER_TIER_MODELS='{"free": "jinaai/jina-reranker-v1-base-en", "pro": "jinaai/jina-reranker-v2-base-en", "enterprise": "jinaai/jina-reranker-v2-base-en"}'
-OPEN_RERANKER_TIER_MODELS='{}'
+**Model Configuration:**
+-   `OPEN_RERANKER_DEFAULT_RERANKER_MODEL`: Default model for text reranking (Default: `jinaai/jina-reranker-v2-base-en`).
+-   `OPEN_RERANKER_CODE_RERANKER_MODEL`: Model for code reranking (Default: `jinaai/jina-reranker-v2-base-code`).
+-   `OPEN_RERANKER_TABLE_RERANKER_MODEL`: Model for table reranking.
+-   `OPEN_RERANKER_TIER_MODELS`: JSON string to map tiers to specific models (e.g., `{"free": "model_A", "pro": "model_B"}`). (Default: `{}`).
 
-# --- MLX Acceleration (for Apple Silicon) ---
-OPEN_RERANKER_USE_MLX=True               # Attempt to use MLX if on Darwin (True/False)
-OPEN_RERANKER_MLX_DEVICE="gpu"           # "gpu" or "cpu" for MLX
+**MLX Acceleration (Apple Silicon):**
+-   `OPEN_RERANKER_USE_MLX`: Attempt to use MLX if on Darwin (Default: `True`).
+-   `OPEN_RERANKER_MLX_DEVICE`: `gpu` or `cpu` for MLX (Default: `gpu`).
 
-# --- Batch Processing & Performance ---
-OPEN_RERANKER_MAX_BATCH_SIZE=32          # Max documents processed by model in one go (per internal batch)
-OPEN_RERANKER_MAX_DOCUMENTS_PER_QUERY=1000 # Max documents accepted per query in /rerank API call
-OPEN_RERANKER_MAX_QUERY_LENGTH=1024      # Max characters for query truncation
-OPEN_RERANKER_MAX_DOCUMENT_LENGTH=8192   # Max characters for document truncation
-# Number of Uvicorn workers (if not using a process manager like Gunicorn)
-# Effective when running `uvicorn open_reranker.main:app --workers $OPEN_RERANKER_NUM_WORKERS`
-# or if Gunicorn is not used.
-OPEN_RERANKER_NUM_WORKERS=4              
+**Batch Processing & Performance:**
+-   `OPEN_RERANKER_MAX_BATCH_SIZE`: Max documents processed by the model in one internal batch (Default: `32`).
+-   `OPEN_RERANKER_MAX_DOCUMENTS_PER_QUERY`: Max documents accepted per query in API calls (Default: `1000`).
+-   `OPEN_RERANKER_MAX_QUERY_LENGTH`: Max characters for query truncation (Default: `1024`).
+-   `OPEN_RERANKER_MAX_DOCUMENT_LENGTH`: Max characters for document truncation (Default: `8192`).
+-   `OPEN_RERANKER_NUM_WORKERS`: Number of Uvicorn workers (Default: `4`).
 
-# --- Monitoring ---
-OPEN_RERANKER_ENABLE_MONITORING=True     # Enable Prometheus metrics endpoint (True/False)
+**Monitoring:**
+-   `OPEN_RERANKER_ENABLE_MONITORING`: Enable Prometheus metrics (Default: `True`).
 
-# --- Integrations (Informational, as integrations use RerankerService directly now) ---
-# OPEN_RERANKER_DSPY_DEFAULT_LM="gpt-3.5-turbo" 
-# OPEN_RERANKER_LANGCHAIN_CACHE_ENABLED=True    
+### Redis Setup
 
-# --- Language Support (Informational, for future model selection logic) ---
-# Comma-separated list of ISO language codes. Example: "en,zh,de,es,ru,ko,fr,ja,pt,it"
-# OPEN_RERANKER_SUPPORTED_LANGUAGES="en"
-```
+For production or multi-worker deployments, using Redis is highly recommended for distributed caching and rate limiting.
+1.  **Install Redis:** Follow official instructions at [redis.io/docs/getting-started/installation](https://redis.io/docs/getting-started/installation/).
+2.  **Start Redis Server:** Typically `redis-server`.
+3.  **Configure URL:** Set `OPEN_RERANKER_REDIS_URL` in your `.env` file (e.g., `OPEN_RERANKER_REDIS_URL="redis://localhost:6379/0"`).
 
-### Setting up Redis
-
-If you want to use Redis for distributed caching (model scores and full responses) and rate limiting (recommended for production or multi-worker setups):
-1.  Install Redis: Follow instructions at [redis.io](https://redis.io/docs/getting-started/installation/).
-2.  Start Redis server (usually `redis-server`).
-3.  Set the `OPEN_RERANKER_REDIS_URL` in your `.env` file, e.g., `OPEN_RERANKER_REDIS_URL="redis://localhost:6379/0"`.
+If `OPEN_RERANKER_REDIS_URL` is not provided, the service will fall back to in-memory stores, which are not suitable for distributed environments.
 
 ## Models
 
-By default, Open-Reranker uses the following models (examples, can be configured):
+### Supported Models
 
--   **Text Reranking (Default)**: `jinaai/jina-reranker-v2-base-en`
--   **Code Reranking**: `jinaai/jina-reranker-v2-base-code` (for future `/rerank/code` endpoint)
--   **Table Reranking**: (e.g., a model specialized for tables, for future `/rerank/table` endpoint)
+OpenReranker is designed to work with a variety of cross-encoder models from the Hugging Face Hub. Default models are configured for general-purpose text, code, and (planned) table reranking.
 
-You can specify custom models by setting the appropriate environment variables (e.g., `OPEN_RERANKER_DEFAULT_RERANKER_MODEL`) or by passing the `model` parameter in API calls where supported. Tier-specific models can also be defined via `OPEN_RERANKER_TIER_MODELS`.
+-   **Default Text Reranker:** `jinaai/jina-reranker-v2-base-en`
+-   **Default Code Reranker:** `jinaai/jina-reranker-v2-base-code`
+-   **Default Table Reranker:** (To be determined - currently uses a placeholder)
 
-## Authentication and Authorization
+These defaults can be overridden via environment variables.
 
-If `OPEN_RERANKER_AUTH_ENABLED` is set to `True` (default):
--   Most API endpoints will require a valid JWT Bearer token in the `Authorization` header.
--   A mechanism to issue tokens (e.g., a `/token` endpoint with username/password login) would typically be part of a larger application incorporating Open-Reranker, or you might pre-generate tokens for service-to-service communication. For development, you can disable auth or use a known `SECRET_KEY` to generate tokens.
--   The JWT must contain a `sub` (subject/user ID) claim and a `tier` claim (e.g., "free", "pro", "enterprise" - configurable via `OPEN_RERANKER_USER_TIERS`).
--   Certain features like batch reranking (`/api/v1/rerank/batch`) and cache clearing (`/api/v1/cache`) require specific user tiers, configured by `OPEN_RERANKER_BATCH_ENDPOINT_TIER` and `OPEN_RERANKER_CACHE_ENDPOINT_TIER` respectively.
+### Custom Models
 
-**Example JWT Payload:**
-```json
-{
-  "sub": "user_id_or_service_name",
-  "tier": "pro", 
-  "exp": 1678886400 
-}
-```
-The `OPEN_RERANKER_SECRET_KEY` in `.env` is crucial for signing and verifying these tokens.
+You can use any compatible cross-encoder model from Hugging Face by:
+1.  Setting the environment variables (e.g., `OPEN_RERANKER_DEFAULT_RERANKER_MODEL="your-org/your-model-name"`).
+2.  Passing the `model` parameter in the API request payload for the `/rerank` endpoint.
+3.  Specifying tier-specific models using `OPEN_RERANKER_TIER_MODELS`.
 
-## Rate Limiting
+The model must be a `AutoModelForSequenceClassification` compatible model.
 
--   Limits are applied per client identifier (authenticated user ID from JWT `sub` claim, or fallback to IP address if auth is disabled or token is missing/invalid).
--   Different tiers ("free", "pro", "enterprise" - from JWT `tier` claim) have different rate limits. The scaling factors for pro/enterprise tiers are set by `OPEN_RERANKER_PRO_TIER_SCALE_FACTOR` and `OPEN_RERANKER_ENTERPRISE_TIER_SCALE_FACTOR` applied to the base "free" tier limits.
--   Supports QPS, RPM, and TPM (Tokens Per Minute, if `OPEN_RERANKER_COUNT_TOKENS=True`). Token counts include query and document lengths.
--   Uses Redis if `OPEN_RERANKER_REDIS_URL` is set, otherwise falls back to in-memory limiting (not suitable for distributed deployments with multiple workers/instances).
+## Advanced Features
 
-## Caching
+### Authentication and Authorization
 
--   **Full Response Caching**: Responses from the `/rerank` endpoint can be cached. TTL set by `OPEN_RERANKER_CACHE_TTL`.
--   **Model Score Caching**: Individual model scores (logits) for query-document pairs are cached by `RerankerService`. TTL set by `OPEN_RERANKER_MODEL_SCORE_CACHE_TTL`.
--   Uses Redis if `OPEN_RERANKER_REDIS_URL` is set and `OPEN_RERANKER_CACHE_ENABLED=True`. Otherwise, uses an in-memory cache for both types.
--   The cache can be cleared via the `DELETE /api/v1/cache` endpoint (requires tier specified in `OPEN_RERANKER_CACHE_ENDPOINT_TIER`).
+When `OPEN_RERANKER_AUTH_ENABLED=True`:
+-   API endpoints are protected and require a JWT Bearer token in the `Authorization` header.
+-   JWTs are signed and verified using the `OPEN_RERANKER_SECRET_KEY`.
+-   **JWT Claims:**
+    -   `sub` (Subject): A unique identifier for the user or client. Used as the client ID for rate limiting.
+    -   `tier`: User tier (e.g., "free", "pro", "enterprise"). Tiers are defined in `OPEN_RERANKER_USER_TIERS`.
+    -   `exp`: Standard JWT expiration timestamp.
+-   **Tier-Based Access Control:**
+    -   The `/api/v1/rerank/batch` endpoint requires a tier specified by `OPEN_RERANKER_BATCH_ENDPOINT_TIER` (default: "pro") or higher.
+    -   The `DELETE /api/v1/cache` endpoint requires a tier specified by `OPEN_RERANKER_CACHE_ENDPOINT_TIER` (default: "enterprise") or higher.
+    -   Tier hierarchy is: `free` < `pro` < `enterprise`.
+
+### Rate Limiting
+
+OpenReranker implements a sophisticated, tiered rate-limiting system:
+-   **Client Identification:** Uses the `sub` claim from the JWT if auth is enabled and valid. Falls back to the client's IP address otherwise.
+-   **Limit Types:**
+    -   Queries Per Second (QPS)
+    -   Requests Per Minute (RPM)
+    -   Tokens Per Minute (TPM) - calculated if `OPEN_RERANKER_COUNT_TOKENS=True`. Token count includes the sum of query length and all document lengths in a request.
+-   **Tiered Limits:** Base limits are defined for the "free" tier (e.g., `OPEN_RERANKER_RATE_LIMIT_QPS`). "Pro" and "enterprise" tiers have their limits scaled by `OPEN_RERANKER_PRO_TIER_SCALE_FACTOR` and `OPEN_RERANKER_ENTERPRISE_TIER_SCALE_FACTOR` respectively.
+-   **Storage Backend:** Uses Redis if `OPEN_RERANKER_REDIS_URL` is configured, enabling distributed rate limiting. Falls back to in-memory storage (per-process) otherwise.
+
+### Caching Strategies
+
+Two levels of caching are implemented to optimize performance:
+1.  **Full Response Caching:**
+    -   Caches the entire JSON response for `/api/v1/rerank` requests.
+    -   Cache key includes: model name, query, all document texts, and `top_k`.
+    -   TTL is controlled by `OPEN_RERANKER_CACHE_TTL`.
+    -   Enabled if `OPEN_RERANKER_CACHE_ENABLED=True`.
+2.  **Model Score Caching:**
+    -   Caches the raw relevance scores (logits) computed by the underlying cross-encoder model for each query-document pair.
+    -   This is a lower-level cache used by `RerankerService`.
+    -   Cache key includes: model name, query, and individual document text.
+    -   TTL is controlled by `OPEN_RERANKER_MODEL_SCORE_CACHE_TTL`.
+    -   Always enabled if a cache backend (Redis or in-memory) is available.
+-   **Storage Backend:** Uses Redis for both cache types if `OPEN_RERANKER_REDIS_URL` is set and caching is enabled. Falls back to in-memory LRU caches otherwise.
+-   **Cache Invalidation:** The `DELETE /api/v1/cache` endpoint allows clearing all cached data (both full responses and model scores). Requires appropriate tier access.
+
+### MLX Acceleration
+
+-   If `OPEN_RERANKER_USE_MLX=True` (default) and the service is running on macOS with Apple Silicon, OpenReranker will attempt to use MLX for model inference.
+-   This can provide substantial performance gains for supported Hugging Face Transformer models.
+-   The device for MLX (GPU or CPU) can be specified with `OPEN_RERANKER_MLX_DEVICE` (default: `gpu`).
+-   If MLX initialization fails or is disabled, the service gracefully falls back to standard PyTorch-based inference.
+
+### Monitoring and Logging
+
+-   **Prometheus Metrics:** If `OPEN_RERANKER_ENABLE_MONITORING=True` (default), a `/metrics` endpoint is exposed, providing detailed operational metrics compatible with Prometheus. Metrics include request counts, latencies, error rates, cache performance, model load times, and rate limit statuses.
+-   **Structured Logging:** All log output is in JSON format, making it easy to parse, search, and integrate with centralized logging systems (e.g., ELK stack, Splunk). Logs include timestamps, log levels, request details (path, method, client IP), processing durations, and status codes.
+
+## Architecture Overview
+
+OpenReranker is built using FastAPI and follows a modular, service-oriented architecture:
+
+1.  **API Layer (`open_reranker.api`):**
+    -   Defines FastAPI routers, request/response models (Pydantic), and endpoint logic.
+    -   Handles request validation, authentication, rate limiting, and response caching.
+    -   Delegates core reranking tasks to the `RerankerService`.
+2.  **Core Services (`open_reranker.services`):**
+    -   `RerankerService`: Orchestrates the reranking process, manages model loading, and handles model score caching.
+    -   `MLXAccelerator`: Provides an abstraction for MLX-based inference if available.
+3.  **Models (`open_reranker.models`):**
+    -   `BaseReranker`: Abstract base class for reranker models.
+    -   `TextReranker`, `CodeReranker`, `TableReranker`: Concrete implementations for different data types.
+    -   `CrossEncoder`: Wrapper around Hugging Face Transformer models for computing relevance scores.
+4.  **Integrations (`open_reranker.integrations`):**
+    -   `LangChainReranker`: A LangChain `BaseRetriever` compatible class.
+    -   `DSPyReranker`: A DSPy `Retrieve` compatible module.
+    -   These integrations use the `RerankerService` directly for efficiency.
+5.  **Core Components (`open_reranker.core`):**
+    -   `config.py`: Handles application settings via Pydantic and environment variables.
+    -   `auth.py`: JWT authentication and tier-based authorization logic.
+    -   `cache.py`: Caching mechanisms (Redis and in-memory).
+    -   `rate_limiting.py`: Tiered rate limiting logic (Redis and in-memory).
+    -   `logging.py`: Structured JSON logging setup.
+    -   `monitoring.py`: Prometheus metrics setup.
+6.  **Utilities (`open_reranker.utils`):**
+    -   Helper functions for text processing, code formatting, table serialization, etc.
+
+**Data Flow (Rerank Request):**
+Request -> FastAPI Endpoint -> Auth Middleware -> Rate Limiting Middleware -> Cache Check (Full Response) -> `RerankerService.rerank()` -> Model Score Cache Check -> Model Inference (`CrossEncoder.compute_scores()` potentially via `MLXAccelerator`) -> Score Caching -> Sorting & Top-K -> Response Formatting -> Full Response Caching -> Response
 
 ## Development
 
-### Setup Development Environment
+### Setup
 
-```bash
-# 1. Clone the repository (if you haven't already)
-# git clone https://github.com/your-username/open-reranker.git 
-# cd open-reranker
+Follow the "From Source" installation instructions. Key steps:
+1.  Clone repository.
+2.  Create and activate a Python virtual environment.
+3.  Install dependencies: `pip install -e ".[dev,integrations,mlx]"`
+4.  Copy `.env.example` to `.env` and configure as needed.
 
-# 2. Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate # Linux/macOS
-# .venv\Scripts\activate # Windows
+### Testing
 
-# 3. Install dependencies (including development tools)
-# Ensure you have pip version that supports pyproject.toml extras well
-pip install --upgrade pip
-pip install -e ".[dev,integrations,mlx]"
+OpenReranker uses `pytest` for testing.
+-   Run all tests:
+    ```bash
+    python -m pytest
+    ```
+-   Run tests with coverage:
+    ```bash
+    python -m pytest --cov=open_reranker --cov-report=term-missing --cov-report=xml
+    ```
+-   Specific tests:
+    ```bash
+    python -m pytest tests/test_api.py::TestAPI::test_rerank_endpoint_success
+    ```
 
-# 4. Setup pre-commit hooks (optional, but recommended)
-pre-commit install
+Tests cover API endpoints, service logic, model interactions (mocked), and integrations.
 
-# 5. Create your .env file
-cp .env.example .env
-# Update .env with your local settings, especially OPEN_RERANKER_SECRET_KEY
-# For testing auth, ensure OPEN_RERANKER_AUTH_ENABLED=True (default)
+### Pre-commit Hooks
 
-# 6. Run tests
-pytest
-```
+Pre-commit hooks are configured using `pre-commit` to ensure code quality and consistency (black, isort, flake8, mypy).
+1.  Install pre-commit: `pip install pre-commit`
+2.  Install hooks: `pre-commit install`
+Hooks will run automatically before each commit. You can also run them manually: `pre-commit run --all-files`
 
-### Running Linters and Type Checker
+## Contributing
 
-```bash
-black .          # Formatter
-isort .          # Import sorter
-flake8 .        # Linter (combines pycodestyle, pyflakes, mccabe)
-# bandit -r open_reranker -c pyproject.toml # Security linter (config in pyproject.toml)
-mypy open_reranker # Type checker
-```
-Or use the Makefile:
-```bash
-make format     # Runs black and isort
-make lint       # Runs flake8 and bandit
-make typecheck  # Runs mypy
-make test       # Runs pytest
-make all-checks # Runs format, lint, typecheck, test
-```
+Contributions are welcome! Please follow these general guidelines:
+1.  **Fork the repository** on GitHub.
+2.  **Create a new branch** for your feature or bug fix: `git checkout -b feature/your-feature-name` or `bugfix/issue-description`.
+3.  **Make your changes.** Ensure you add or update tests for your changes.
+4.  **Follow coding standards:** Run `pre-commit run --all-files` to format and lint your code.
+5.  **Write clear commit messages.**
+6.  **Push your branch** to your fork: `git push origin feature/your-feature-name`.
+7.  **Open a Pull Request** against the `main` branch of `llamasearchai/OpenReranker`.
+8.  Provide a clear description of your changes in the PR.
 
-## Connecting with Other Programs/Services
-
-Open-Reranker is designed as a microservice. Integrate it via:
-
-1.  **HTTP API Calls**: (Recommended for decoupling)
-    *   Other services make HTTP requests to Open-Reranker API endpoints (e.g., `/api/v1/rerank`).
-    *   Use `requests` or `httpx` in other Python programs.
-    *   Handle authentication (JWT Bearer tokens) if `OPEN_RERANKER_AUTH_ENABLED=True`.
-
-2.  **Direct SDK/Class Usage**: (If OpenReranker is a library in the same Python environment)
-    *   Import `RerankerService`, `LangChainReranker`, or `DSPyReranker` classes directly.
-    *   This is suitable for monolithic applications or tightly coupled systems.
-    *   Example:
-        ```python
-        # from open_reranker.services.reranker_service import RerankerService
-        # service = RerankerService()
-        # results = asyncio.run(service.rerank(query="..."), documents=["..."])
-        ```
-
-3.  **Message Queues**: (For advanced, asynchronous, decoupled workflows - not built-in)
-    *   Set up RabbitMQ, Kafka, etc. Your services publish tasks, Open-Reranker consumes.
-
-**Example: Calling Open-Reranker from another Python program via HTTP (Async with httpx):**
-
-```python
-# In your other_program.py
-import httpx # Preferred for async
-import asyncio
-
-OPEN_RERANKER_API_URL = "http://localhost:8000/api/v1/rerank"
-
-async def get_reranked_results(query: str, documents: list[dict], auth_token: str = None) -> list:
-    payload = {
-        "query": query,
-        "documents": documents, # Each dict: {"id": "...", "text": "..."}
-        "top_k": 5 
-    }
-    headers = {}
-    if auth_token:
-        headers["Authorization"] = f"Bearer {auth_token}"
-        
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(OPEN_RERANKER_API_URL, json=payload, headers=headers)
-            response.raise_for_status() # Raises an exception for bad status codes (4xx or 5xx)
-            return response.json().get("results", [])
-        except httpx.HTTPStatusError as e:
-            print(f"HTTP Error calling Open-Reranker: {e.response.status_code} - {e.response.text}")
-            return []
-        except httpx.RequestError as e:
-            print(f"Request Error calling Open-Reranker: {e}")
-            return []
-
-# Example usage:
-# async def example_run():
-#     my_query = "What is photosynthesis?"
-#     extracted_docs = [
-#         {"id": "docA", "text": "Photosynthesis is a process used by plants."}, 
-#         {"id": "docB", "text": "The sun is a star."}
-#     ]
-#     # Assuming you have a way to get a token if auth is enabled
-#     # my_jwt_token = get_my_jwt_token_function() 
-#     my_jwt_token = None # For no-auth example
-# 
-#     reranked_docs = await get_reranked_results(my_query, extracted_docs, auth_token=my_jwt_token)
-#     for doc in reranked_docs:
-#         print(f"Reranked: {doc['id']} - Score: {doc['score']}")
-#
-# if __name__ == "__main__":
-#    asyncio.run(example_run())
-```
-
-This setup ensures Open-Reranker can function as a standalone, specialized service that your other applications can leverage for its reranking capabilities, either via its HTTP API or by directly using its classes if appropriate for your architecture.
+Please refer to `CONTRIBUTING.md` (if available) for more detailed guidelines.
 
 ## License
 
-MIT License
+OpenReranker is licensed under the [MIT License](LICENSE).
